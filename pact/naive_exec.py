@@ -50,11 +50,18 @@ def _expect_mul_overflow(series1, series2):
 
 
 def naive_pandas_plan_exec(plan, base,
+                           vlabel_dfs=None,
                            debug=False,
                            sliced_eval=None,
                            graceful_bigint=True):
     basedf = base.value_counts(['s', 't']).rename('count').reset_index()
-    state = {'_edge_base': basedf}
+    state = {Operation.BASERELNAME: basedf}
+
+    if vlabel_dfs is not None:
+        for label, labeldf in vlabel_dfs.items():
+            internal_base = Operation.LABELREL_PREFIX + label
+            state[internal_base] = labeldf
+
     slice_keys = set()
 
     if sliced_eval is not None:
@@ -114,7 +121,7 @@ def naive_pandas_plan_exec(plan, base,
 
         elif kind == Operation.JOIN or kind == Operation.SEMIJOIN:
             A, B = state[op.A], state[op.B]
-            Bnocount = B.drop('count', axis=1)
+            Bnocount = B.drop('count', axis=1) if 'count' in B.columns else B
             if kind == Operation.JOIN and op.key == []:
                 new = A.merge(Bnocount, how='cross')
             else:
@@ -158,7 +165,7 @@ def _safe_sum_finalstate(state):
     return int(finalcount.sum())
 
 
-def sliced_pandas_homcount(pattern, host, slicer, debug=False):
+def sliced_pandas_homcount(pattern, host, vlabel_dfs, slicer, debug=False):
     if not pattern.is_directed and pattern.star is not None:
         if slicer == dict():
             return _star_shortcut(host, pattern.star)
@@ -169,12 +176,14 @@ def sliced_pandas_homcount(pattern, host, slicer, debug=False):
     if not hasattr(pattern, 'plan'):
         raise RuntimeError('No plan for', pattern.id)
 
+
     if (not pattern.is_directed and hasattr(pattern, 'clique') and
         pattern.clique is not None and pattern.clique > 2):
         host = _undir_df_degree_thres(host, pattern.clique - 1)
 
     x, empty = naive_pandas_plan_exec(pattern.plan,
                                       host,
+                                      vlabel_dfs,
                                       debug=debug,
                                       sliced_eval=slicer)
     homs = _safe_sum_finalstate(x) if not empty else 0
@@ -182,8 +191,8 @@ def sliced_pandas_homcount(pattern, host, slicer, debug=False):
     return homs
 
 
-def naive_pandas_homcount(pattern, host, debug=False):
-    return sliced_pandas_homcount(pattern, host, slicer={}, debug=debug)
+def naive_pandas_homcount(pattern, host, vlabel_dfs=None, debug=False):
+    return sliced_pandas_homcount(pattern, host, vlabel_dfs, slicer={}, debug=debug)
 
 
 # very simplistic for now, should allow for more variables and possible be automated in the future

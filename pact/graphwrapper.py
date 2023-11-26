@@ -84,6 +84,13 @@ class GraphWrapper:
     def cleanup_for_storage(self):
         self.nauty_graph = None
 
+    def vertex_labels_dict(self):
+        ret = dict()
+        for n in self.graph:
+            nodeinfo = self.graph.nodes[n]
+            ret[n] = nodeinfo.get('labels', [])
+        return ret
+
     @property
     def is_directed(self):
         return nx.is_directed(self.graph)
