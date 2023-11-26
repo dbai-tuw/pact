@@ -279,9 +279,34 @@ def cover_join_ops_earlysj(tdnode, nodename, child_map):
         sjcands = [c for c in tdnode.children if is_semijoin_child(tdnode, c)]
         sjs = [Operation(Operation.SEMIJOIN, nodename, A=nodename, B=child_map[c], key=c.bag)
                for c in sjcands]
+
+        e1, e2 = tdnode.cover_map[k1], tdnode.cover_map[k2]
+        cols_after_join = set(e1) | set(e2)
+        join_ops = [binary_join_op(k1, k2, con_cover_map, nodename)] + sjs
+        if cols_after_join == tdnode.bag:
+            return join_ops
         paranoid_project = Operation(Operation.PROJECT, nodename,
                                      A=nodename, key=tdnode.bag)
-        return [binary_join_op(k1, k2, con_cover_map, nodename)] + sjs + [paranoid_project]
+        return join_ops + [paranoid_project]
+    elif len(tdnode.cover) == 2 and len(tdnode.con_cover) > 4:
+        k1, k2 = tdnode.cover
+        e1, e2 = tdnode.cover_map[k1], tdnode.cover_map[k2]
+        cols_after_join = set(e1) | set(e2)
+
+        op = Operation(Operation.JOIN, nodename,
+                       A=k1, B=k2, key=[])
+
+        sjcands = [c for c in tdnode.children if is_semijoin_child(tdnode, c)]
+        sjs = [Operation(Operation.SEMIJOIN, nodename, A=nodename, B=child_map[c], key=c.bag)
+               for c in sjcands]
+
+        join_ops = [op] + sjs
+        if cols_after_join == tdnode.bag:
+            return join_ops
+
+        paranoid_project = Operation(Operation.PROJECT, nodename,
+                                     A=nodename, key=tdnode.bag)
+        return join_ops + [paranoid_project]
     else:
         path = find_join_path(con_cover_map)  # really needs to be connected for this to work
         return path_join_ops_earlysj(path, tdnode, nodename, child_map)

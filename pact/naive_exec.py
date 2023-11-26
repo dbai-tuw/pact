@@ -115,7 +115,10 @@ def naive_pandas_plan_exec(plan, base,
         elif kind == Operation.JOIN or kind == Operation.SEMIJOIN:
             A, B = state[op.A], state[op.B]
             Bnocount = B.drop('count', axis=1)
-            new = A.join(Bnocount.set_index(key), on=key, how='inner')
+            if kind == Operation.JOIN and op.key == []:
+                new = A.merge(Bnocount, how='cross')
+            else:
+                new = A.join(Bnocount.set_index(key), on=key, how='inner')
             state[op.new_name] = new
 
         elif kind == Operation.PROJECT:

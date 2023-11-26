@@ -23,6 +23,12 @@ def _is_Knm(G, n, m):
         return True
     return False
 
+def _is_cycle(nxg):
+    degs = [d for _, d in nxg.degree]
+    if min(degs) == 2 and max(degs) == 2:
+        return len(nxg.edges)
+    return None
+
 
 class GraphWrapper:
     def __init__(self, nx_graph):
@@ -35,6 +41,7 @@ class GraphWrapper:
         self.plan = None
 
         self.star = _is_nx_star(nx_graph)
+        self.cycle = _is_cycle(nx_graph)
 
         # Nauty graphs don't work with serialisation so make sure not to store them
         self.nauty_graph = None
