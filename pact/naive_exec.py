@@ -122,7 +122,7 @@ def naive_pandas_plan_exec(plan, base,
         elif kind == Operation.JOIN or kind == Operation.SEMIJOIN:
             A, B = state[op.A], state[op.B]
             Bnocount = B.drop('count', axis=1) if 'count' in B.columns else B
-            if kind == Operation.JOIN and op.key == []:
+            if kind == Operation.JOIN and key == []:
                 new = A.merge(Bnocount, how='cross')
             else:
                 new = A.join(Bnocount.set_index(key), on=key, how='inner')
@@ -204,7 +204,8 @@ def sliced_multithread_exec_helper(pattern, host,
     def _helper(interval):
         lo, hi = interval
         slicer = {slice_var: (lo, hi)}
-        return sliced_pandas_homcount(pattern, host, slicer=slicer, debug=debug)
+        return sliced_pandas_homcount(pattern, host, vlabel_dfs=None,
+                                      slicer=slicer, debug=debug)
 
     top = host.max().max()
     steps = list(range(0, top, interval_size)) + [None]
