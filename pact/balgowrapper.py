@@ -119,13 +119,17 @@ def _G_to_HG(ecmap):
     return hg
 
 
-def _get_refined_decomp(G, ecmap):
+def _get_refined_decomp(G, ecmap, refine_covers):
     """Get a HTD plus refinements for graph G."""
     htd = _rawHTD(G, ecmap)
 
     overhead = 0
     for n in htd.nodes():
-        n.con_cover = _connect_cover(G, n, ecmap)
+        if refine_covers:
+            n.con_cover = _connect_cover(G, n, ecmap)
+        else:
+            n.con_cover = list(n.cover)
+
         n.con_cover_map = {en: ecmap[en] for en in n.con_cover}
 
         delta = len(n.con_cover) - len(n.cover)
@@ -134,7 +138,7 @@ def _get_refined_decomp(G, ecmap):
     return htd, overhead
 
 
-def balgo_multitry_for_cheapest_decomp(G, times=1, threads=1):
+def balgo_multitry_for_cheapest_decomp(G, times=1, threads=1, refine_covers=True):
     ecmap = _make_edge_conversion_map(G)
 
     hg = _G_to_HG(ecmap)
@@ -145,11 +149,9 @@ def balgo_multitry_for_cheapest_decomp(G, times=1, threads=1):
     except RuntimeError:
         pass
 
-    _get_refined_decomp(G, ecmap)
-
     # Avoid the use of multiprocess in the future for threads=1 and times=1 cases
     pool = multiprocess.Pool(threads)
-    params = zip([G] * times, [ecmap] * times)
+    params = zip([G] * times, [ecmap] * times, [refine_covers] * times)
     x = pool.starmap(_get_refined_decomp, params)
 
     best, bestcost = min(x, key=lambda pair: pair[1])
