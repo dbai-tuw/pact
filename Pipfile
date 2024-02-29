@@ -15,6 +15,7 @@ more-itertools = "*"
 jupyter = "*"
 numpy = "*"
 gmpy2 = "*"
+pynauty= "~=2.8"
 
 [dev-packages]
 line-profiler = "*"

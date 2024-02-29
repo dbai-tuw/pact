@@ -5,7 +5,7 @@ Once everything has been set up (see below) we recommend to run
 ```sh
 pipenv run jupyter notebook
 ```
-from the main project directory and open the `Tutorial 1` notebook for an introduction on how to use Mobius.
+
 
 ## Installation
 Necessary dependencies that are not installed automatically:
@@ -23,4 +23,8 @@ pip uninstall pynauty
 pip install --no-binary pynauty pynauty
 ```
 
+### Using PACT
 
+The included jupyer notebooks illustrate example usage. In particular, the notebook titled  `Tutorial 1` provides a documented introduction to the main components of the software.
+
+See also [https://github.com/ejin700/hombasis-gnn](https://github.com/ejin700/hombasis-gnn) for various examples of usage.
