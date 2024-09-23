@@ -118,11 +118,24 @@ def count_ops(parent, child, parentname, childname):
     return [childcount, merge_count]
 
 
+def star_count(node, nodename):
+    key, starorder = node.special_star
+    ren = rename_op(nodename, (key, 'other'))
+    count = Operation(Operation.STAR_EXT, nodename, A=nodename, key=(key, starorder))
+    return [ren, count]
+
+
 def node_to_ops(node, index=0):
     def node_name_from_index(index):
         return f'node${index}'
     plan = deque()
     nodename = node_name_from_index(index)
+
+    if node.special_star is not None:
+        assert (len(node.children) == 0)
+        plan.extend(star_count(node, nodename))
+        return plan
+
     for en, e in node.con_cover_map.items():
         plan.append(rename_op(en, e))
 
@@ -134,6 +147,7 @@ def node_to_ops(node, index=0):
         # make the renamed node the noderel directly in the renaming
         # be careful this is fragile to changes in plan building
         plan[-1].new_name = nodename
+
 
     # attach child plans
     child_map = dict()

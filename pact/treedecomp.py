@@ -9,6 +9,7 @@ class TDNode:
         self.cover = list(cover_map.keys())
         self.con_cover_map = None
         self.con_cover = None
+        self.special_star = None
         # self.parent = None
 
     def set_con_cover_map(self, con_cover_map):

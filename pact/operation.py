@@ -25,7 +25,7 @@ class Operation:
 
     PROJECT: project A to attributes in key
     """
-    JOIN, SEMIJOIN, RENAME, COUNT_EXT, SUM_COUNT, PROJECT = range(6)
+    JOIN, SEMIJOIN, RENAME, COUNT_EXT, SUM_COUNT, PROJECT, STAR_EXT = range(7)
     BASERELNAME = '_edge_base'
     LABELREL_PREFIX = '_vlabel_base_'
 
@@ -52,3 +52,5 @@ class Operation:
             return f'⍴: {self.A} -> {self.new_name}({renames})'
         elif self.kind == Operation.PROJECT:
             return f'{self.new_name} = project {self.A} to {self.key}'
+        elif self.kind == Operation.STAR_EXT:
+            return f'{self.new_name} = star count of {self.key} in {self.A}'
