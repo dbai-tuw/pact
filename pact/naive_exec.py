@@ -101,6 +101,19 @@ def naive_pandas_plan_exec(plan, base,
             extcount = A[index].groupby(key).sum().reset_index()
             state[op.new_name] = extcount
 
+        elif kind == Operation.STAR_EXT:
+            A = state[op.A]
+            key, star_order = key
+            index = [key, 'count']
+            xx = A.groupby(key).sum().reset_index()[index]
+
+            count = xx['count'].astype('object')
+            fc = count.copy()
+            for _ in range(star_order-1):
+                fc *= count
+            xx['count'] = fc
+            state[op.new_name] = xx
+
         elif kind == Operation.SUM_COUNT:
             A, B = state[op.A], state[op.B]
             keycount = B.rename(columns={'count': 'extcount'})
