@@ -28,6 +28,7 @@ class Operation:
     JOIN, SEMIJOIN, RENAME, COUNT_EXT, SUM_COUNT, PROJECT, STAR_EXT = range(7)
     BASERELNAME = '_edge_base'
     LABELREL_PREFIX = '_vlabel_base_'
+    WEIGHTSNAME = '_w'
 
     def __init__(self, kind, new_name,
                  A=None, B=None, key=None, rename_key=None):
