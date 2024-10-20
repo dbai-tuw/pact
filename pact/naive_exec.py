@@ -7,7 +7,7 @@ import warnings
 import math
 from pact.operation import Operation
 import multiprocess as mp
-from gmpy2 import mpz
+from gmpy2 import mpz, mpq
 
 
 def _slice_query(df, slicer):
@@ -230,3 +230,124 @@ def sliced_multithread_exec_helper(pattern, host,
     pool = mp.Pool(threads)
     slice_counts = pool.imap_unordered(_helper, intervals)
     return sum(slice_counts)
+
+
+def naive_pandas_plan_exec_weighted(plan, base, weights,
+                                    debug=False):
+    basedf = base.value_counts(['s', 't']).rename('count').reset_index()
+    state = {Operation.BASERELNAME: basedf,
+             Operation.WEIGHTSNAME: weights}
+
+    for op in plan:
+        if debug:
+            print('DEBUG', op, file=sys.stderr)
+        kind = op.kind
+        if op.key is not None:
+            key = list(op.key)
+
+        if kind == Operation.RENAME:
+            A = state[op.A]
+            newA = A.rename(columns=op.rename_key)
+
+            nocountcols = list(newA.columns)
+            nocountcols.remove('count')
+
+            wdf  = state[Operation.WEIGHTSNAME]
+            for c in nocountcols:
+                rn = wdf.rename(columns={'vertex': c, 'weight': f'_w_{c}'})
+                print(rn.columns, newA.columns)
+                newA= newA.join(rn, on=c, how='inner')
+            A_cols = set(newA.columns)
+            state[op.new_name] = newA
+
+        elif kind == Operation.COUNT_EXT:
+            A = state[op.A].copy()
+            index = key + ['count']
+
+            if _expect_sum_overflow(A['count']):
+                if debug:
+                    print('DEBUG', 'degrading to gmpy2.mpq because of expected overflow.',
+                          file=sys.stderr)
+                A['count'] = A['count'].astype('object') * mpq(1)
+            
+            # apply weights for the counting
+            # this is a mess with making the weights explicit as columns. 
+            # Maybe just apply the weight df here and drop it everywhere else
+            allcols = list(A.columns)
+            for c in allcols:
+                if c in index or (type(c)==str and c.startswith('_w_')):
+                    continue
+                wcname = f'_w_{c}'
+                wcol = A[wcname]
+                A['count'] *= wcol
+            extcount = A[index].groupby(key).sum().reset_index()
+            state[op.new_name] = extcount
+
+        elif kind == Operation.STAR_EXT:
+            raise RuntimeError('Star extension not supported in weighted counting.')
+
+        elif kind == Operation.SUM_COUNT:
+            A, B = state[op.A], state[op.B]
+            keycount = B.rename(columns={'count': 'extcount'})
+            Aprime = A.join(keycount.set_index(key), on=key, how='inner')
+
+            if _expect_mul_overflow(Aprime['count'], Aprime['extcount']):
+                if debug:
+                    print('DEBUG', 'degrading to gmpy2.mpq type because of expected overflow.',
+                          file=sys.stderr)
+                newc1 = Aprime['count'].astype('object') * mpq(1)
+                newc2 = Aprime['extcount'].astype('object') * mpq(1)
+                newcount = newc1 * newc2
+            else:
+                newcount = Aprime['count'] * Aprime['extcount']
+            Aprime['count'] = newcount
+            state[op.new_name] = Aprime.drop('extcount', axis=1)
+
+        elif kind == Operation.JOIN or kind == Operation.SEMIJOIN:
+            A, B = state[op.A], state[op.B]
+            Bnocount = B.drop('count', axis=1) if 'count' in B.columns else B
+            if kind == Operation.JOIN and key == []:
+                new = A.merge(Bnocount, how='cross')
+            else:
+                jk = list(key)
+                for c in key:
+                    jk += [f'_w_{c}']
+                #print(f"Join actually now on {jk} for counting business")
+                #print('columns to join over', list(A.columns), list(B.columns))
+                new = A.join(Bnocount.set_index(jk), on=jk, how='inner')
+            state[op.new_name] = new
+
+        elif kind == Operation.PROJECT:
+            A = state[op.A]
+            index = key + ['count']
+            for c in key:
+                index += [f'_w_{c}']
+            allcols = list(A.columns)
+            #print('Projecting', list(A.columns), ' to ', index)
+            # very risky to project here without great care that we don't lose the weight in the overall counting.
+            # Ultimately we might need a special planner that makes plans that are safe for vertex weighted counting
+            #if len(allcols) > len(index):
+            #    raise RuntimeError('Proper projection not yet supported in weighted counting mode')
+
+            # we want to get rid of the multiples introduced by the intermediate nodes
+            # so we take the max of the count (which should be 1 after the joins).
+            # This is wrong if we project after doing some counting on this table
+            # operations should be named more specifically to avoid confusion (+ doc/spec needed)
+            state[op.new_name] = A[index].groupby(key).max().reset_index()
+
+        else:
+            raise RuntimeError(f'Unknown operation kind {kind}')
+
+        if len(state[op.new_name]) == 0:
+            return state, True
+
+        # final weighting of coutns
+    A = state['node$0']
+    for c in list(A.columns):
+        if c == 'count' or (type(c) == str and c.startswith('_w_')):
+            continue
+        wcname = f'_w_{c}'
+        wcol = A[wcname]
+        A['count'] *= wcol
+    state['node$0'] = A
+    return state, False
