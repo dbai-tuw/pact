@@ -255,7 +255,6 @@ def naive_pandas_plan_exec_weighted(plan, base, weights,
             wdf  = state[Operation.WEIGHTSNAME]
             for c in nocountcols:
                 rn = wdf.rename(columns={'vertex': c, 'weight': f'_w_{c}'})
-                print(rn.columns, newA.columns)
                 newA= newA.join(rn, on=c, how='inner')
             A_cols = set(newA.columns)
             state[op.new_name] = newA
