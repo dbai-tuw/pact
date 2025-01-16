@@ -6,7 +6,6 @@ adds all the precomputed things in there.
 from uuid import uuid4 as uuid_gen
 import networkx as nx
 from more_itertools import grouper
-import pact.nautyhelper as nautyhelper
 
 
 def _is_nx_star(nxg):
@@ -76,6 +75,11 @@ class GraphWrapper:
         return GraphWrapper(nxg)
 
     def guarantee_nauty_graph(self):
+        try:
+            import pact.nautyhelper as nautyhelper  # Import here to make it optional
+        except ImportError:
+            raise ImportError("pynauty is not installed. Please install it to use this feature.")
+        
         if self.nauty_graph is not None:
             return True
         self.nauty_graph = nautyhelper.nx_to_pynauty(self.graph)

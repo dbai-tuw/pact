@@ -6,9 +6,12 @@ import networkx as nx
 import igraph as ig
 import math
 import pact.util as util
-import pynauty
-from pact.nautyhelper import nx_to_pynauty, nauty_has_bidirected_edge, \
-    nauty_quotient_fail_on_selfloop, nauty_graph_edgenum
+try:
+    import pynauty
+    from pact.nautyhelper import nx_to_pynauty, nauty_has_bidirected_edge, \
+        nauty_quotient_fail_on_selfloop, nauty_graph_edgenum
+except ImportError:
+    pynauty = None  
 from pact.graphwrapper import GraphWrapper
 from gmpy2 import mpq
 
@@ -94,6 +97,8 @@ def hombase_coeffs(G, spasm_space, skip_bidirected=True):
 def hombase_coeffs_nauty(G, spasm_space,
                          skip_bidirected=True,
                          expand_space=False):
+    if pynauty is None:
+        raise ImportError("pynauty is not installed. Please install it to use this feature. You can use the slightly slower `hombase_coeffs` method instead.")
     # Maintains the sum term over all partition products for
     # partitions that are isomorphic to graph in key of dictionary
     partition_base = dict()
